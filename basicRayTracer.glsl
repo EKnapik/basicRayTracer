@@ -98,9 +98,12 @@ vec3 calColorRec(vec3 rayOr, vec3 rayDir) {
         reflectEye = reflect(normalize(-rayDir), nor);
         // material color
         float tileSize = 2.0;
-        float tile = 0.4*mod(floor(tileSize*pos.x) + floor(tileSize*pos.z), 2.0);
-        tile = tile + 0.5;
-    	material = vec3(tile);
+        float tile = mod(floor(tileSize*pos.x) + floor(tileSize*pos.z), 2.0);
+        if(tile > 0.0) {
+            material = vec3(0.9, 0.1, 0.1);
+        } else {
+            material = vec3(0.9, 0.9, 0.1);
+        }
     } else if(id > 1.5 && id < 2.5) { // hit the sphere1
         nor = nSphere(pos, sphere1);
         reflectEye = reflect(normalize(-rayDir), nor);
@@ -163,9 +166,12 @@ vec3 calColor(vec3 rayOr, vec3 rayDir) {
         reflectEye = reflect(normalize(-rayDir), nor);
         // material color
         float tileSize = 2.0;
-        float tile = 0.4*mod(floor(tileSize*pos.x) + floor(tileSize*pos.z), 2.0);
-        tile = tile + 0.5;
-    	material = vec3(tile);
+        float tile = mod(floor(tileSize*pos.x) + floor(tileSize*pos.z), 2.0);
+        if(tile > 0.0) {
+            material = vec3(0.9, 0.1, 0.1);
+        } else {
+            material = vec3(0.9, 0.9, 0.1);
+        }
     } else if(id > 1.5 && id < 2.5) { // hit the sphere1
         nor = nSphere(pos, sphere1);
         reflectEye = reflect(normalize(-rayDir), nor);

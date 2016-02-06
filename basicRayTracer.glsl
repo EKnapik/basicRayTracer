@@ -16,6 +16,17 @@ float iPlane(vec3 ro, vec3 rayDir) {
     return -ro.y/rayDir.y;
 }
 
+// Using a plane limited on the x axis to more closely mimic
+// Turner Witter's paper
+float iPlaneLimited(vec3 ro, vec3 rayDir) {
+    float result = -ro.y/rayDir.y;
+    vec3 pos = ro + result*rayDir;
+    if(pos.x > 3.0 || pos.x < -5.0) {
+        return -1.0;
+    }
+    return result;
+}
+
 vec3 nPlane() {
 	return vec3(0.0, 1.0, 0.0);
 }
@@ -44,7 +55,7 @@ float intersect(in vec3 ro, in vec3 rayDir, out float resT) {
     float id = -1.0; // the object hit
     float tsphere1 = iSphere(ro, rayDir, sphere1);
     float tsphere2 = iSphere(ro, rayDir, sphere2);
-    float tplane = iPlane(ro, rayDir);
+    float tplane = iPlaneLimited(ro, rayDir);
     if(tsphere1 > 0.0) {
     	id = 2.0; // intersected with sphere1
         resT = tsphere1; // setting the time value the sphere is at
@@ -59,6 +70,71 @@ float intersect(in vec3 ro, in vec3 rayDir, out float resT) {
     }
     
     return id;
+}
+
+
+vec3 calColorRec(vec3 rayOr, vec3 rayDir) {
+    float t;
+    float id = intersect(rayOr, rayDir, t);
+    
+    vec3 pos = rayOr + rayDir*(t);
+    // need this to prevent shelf shading
+    vec3 posShadow = rayOr + rayDir*(t-0.0001);
+    vec3 nor;
+    vec3 reflectEye; // rayDir is the eye to position
+    float time = 0.5*iGlobalTime;
+    //vec3 lightPos = vec3(3.0*sin(time), 3.0, 3.0*cos(time));
+    vec3 lightPos = vec3(1.5, 5.0, 6.0);
+    vec3 lightDir = normalize(lightPos - pos);
+    vec3 lightCol = vec3(1.0, 0.9, 0.7);
+    float specCoeff, diffCoeff, ambCoeff;
+    float spec, diff, shadow;
+    vec3 amb;
+    
+    // set material of object
+    vec3 material;
+    if(id > 0.5 && id < 1.5) { // hit the plane
+        nor = nPlane();
+        reflectEye = reflect(normalize(-rayDir), nor);
+        // material color
+        float tileSize = 2.0;
+        float tile = 0.4*mod(floor(tileSize*pos.x) + floor(tileSize*pos.z), 2.0);
+        tile = tile + 0.5;
+    	material = vec3(tile);
+    } else if(id > 1.5 && id < 2.5) { // hit the sphere1
+        nor = nSphere(pos, sphere1);
+        reflectEye = reflect(normalize(-rayDir), nor);
+        // material color
+    	material = vec3(0.8, 0.1, 0.3);
+    } else if(id > 2.5 && id < 3.5) { // hit the sphere2
+        nor = nSphere(pos, sphere2);
+        reflectEye = reflect(normalize(-rayDir), nor);
+        // material color
+        material = vec3(0.2, 0.1, 0.8);
+    } else { // background
+        // cornflower blue
+    	return vec3(0.39, 0.61, 0.94);
+    }
+
+    // calculate lighting
+    vec3 brdf;
+    ambCoeff = 0.1;
+    diffCoeff = 1.2;
+    specCoeff = 1.2;
+    // hard shadow method
+    float trashTime; // this isn't going to be used right now
+    shadow = intersect(posShadow, lightDir, trashTime);
+    if(shadow > 0.0) {
+        shadow = 0.1;
+    } else {
+    	shadow = 1.0;
+    }
+    amb = ambCoeff*vec3(1.0, 1.0, 1.0);
+    diff = shadow*diffCoeff*clamp(dot(nor,lightDir), 0.0, 1.0);
+    spec = shadow*specCoeff*pow(clamp(dot(reflectEye,lightDir), 0.0, 1.0), 40.0);
+    brdf = material*lightCol*(diff+spec);
+    brdf += amb;
+    return brdf;
 }
 
 
@@ -94,22 +170,23 @@ vec3 calColor(vec3 rayOr, vec3 rayDir) {
         nor = nSphere(pos, sphere1);
         reflectEye = reflect(normalize(-rayDir), nor);
         // material color
-    	material = vec3(0.9, 0.1, 0.3);
+        vec3 reflectRay = reflect(rayDir, nor);
+        vec3 reflectColor = calColorRec(posShadow, reflectRay);
+        // material color
+        material = mix(vec3(.9), reflectColor, .7);
     } else if(id > 2.5 && id < 3.5) { // hit the sphere2
         nor = nSphere(pos, sphere2);
         reflectEye = reflect(normalize(-rayDir), nor);
         // material color
         material = vec3(0.2, 0.1, 0.8);
     } else { // background
-        nor = vec3(0.0);
-        reflectEye = vec3(0.0);
-    	material = vec3(0.0);
+    	return vec3(0.39, 0.61, 0.94);
     }
 
     // calculate lighting
     vec3 brdf;
     ambCoeff = 0.1;
-    diffCoeff = 1.0;
+    diffCoeff = 1.2;
     specCoeff = 1.2;
     // hard shadow method
     float trashTime; // this isn't going to be used right now
@@ -121,7 +198,7 @@ vec3 calColor(vec3 rayOr, vec3 rayDir) {
     }
     amb = ambCoeff*vec3(1.0, 1.0, 1.0);
     diff = shadow*diffCoeff*clamp(dot(nor,lightDir), 0.0, 1.0);
-    spec = shadow*specCoeff*pow(clamp(dot(reflectEye,lightDir), 0.0, 1.0), 20.0);
+    spec = shadow*specCoeff*pow(clamp(dot(reflectEye,lightDir), 0.0, 1.0), 40.0);
     brdf = material*lightCol*(diff+spec);
     brdf += amb;
     return brdf;
